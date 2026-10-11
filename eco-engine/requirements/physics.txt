@@ -1,0 +1,3 @@
+-r base.txt
+numpy>=1.26.0
+pybuildingenergy==2.0.2          # EN ISO 52016-1 hourly simulation (EURAC, BSD-3)
