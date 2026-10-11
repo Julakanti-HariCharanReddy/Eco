@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v0.110+-00553E?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Streamlit](https://img.shields.io/badge/Streamlit-v1.32+-FF4B4B?style=flat&logo=streamlit)](https://streamlit.io)
 [![Pydantic v2](https://img.shields.io/badge/Pydantic-v2.6+-E92063?style=flat&logo=pydantic)](https://docs.pydantic.dev)
-[![Tests](https://img.shields.io/badge/Pytest-37%20Passed-brightgreen?style=flat&logo=pytest)](https://pytest.org)
+[![Tests](https://img.shields.io/badge/Pytest-128%20Passed-brightgreen?style=flat&logo=pytest)](https://pytest.org)
 
 ---
 
