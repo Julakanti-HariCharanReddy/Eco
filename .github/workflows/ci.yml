@@ -58,7 +58,12 @@ jobs:
           label: "pip install"
 
       - name: Run tests
-        run: python -m pytest tests -p no:anyio -q
+        shell: bash
+        run: |
+          set -o pipefail
+          # Failing tests are also published as annotations, readable on the run page.
+          python -m pytest tests -p no:anyio -q -rfE --tb=line 2>&1 | tee pytest.txt || {
+            grep -E "^(FAILED|ERROR) |^E  |\.py:[0-9]+: " pytest.txt | head -40 | sed 's/^/::error::/'; exit 1; }
 
       - name: Measure tests
         uses: green-coding-solutions/eco-ci-energy-estimation@782dd4a31bc426a6ae26a7b08d89af454b10ffc0 # v5.3.0
@@ -99,5 +104,7 @@ jobs:
 
       - name: Run ISO 52016 smoke test (fails if it is skipped)
         run: |
-          python -m pytest tests/test_physics_detailed.py -p no:anyio -q -rs | tee result.txt
-          ! grep -q "skipped" result.txt
+          set -o pipefail
+          python -m pytest tests/test_physics_detailed.py -p no:anyio -q -rsfE --tb=short 2>&1 | tee result.txt || {
+            grep -E "^(FAILED|ERROR) |^E  |Error|error" result.txt | head -40 | sed 's/^/::error::/'; exit 1; }
+          if grep -q "skipped" result.txt; then grep -i "skip" result.txt | sed 's/^/::error::/'; exit 1; fi
