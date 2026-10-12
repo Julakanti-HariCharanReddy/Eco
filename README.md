@@ -2,6 +2,8 @@
 
 **Know your home's green score. Get a retrofit plan you can trust.**
 
+[![tests](https://github.com/Julakanti-HariCharanReddy/Eco/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Julakanti-HariCharanReddy/Eco/actions/workflows/ci.yml)
+
 Project Eco helps homeowners, advisors and lenders see how green a home is, what to fix first,
 and what each upgrade will really save. It serves homes in the UK and India.
 
