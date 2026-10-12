@@ -39,7 +39,7 @@ def require_service_token(x_service_token: Optional[str] = Header(None)) -> None
 ServiceAuth = Depends(require_service_token)
 
 
-def create_service_app(name: str, description: str, version: str = "1.0.0", **kwargs) -> FastAPI:
+def create_service_app(name: str, description: str, upload_paths: tuple = (), version: str = "1.0.0", **kwargs) -> FastAPI:
     if _production() and len(os.getenv("ECO_SERVICE_TOKEN", "")) < 32:
         raise RuntimeError("ECO_SERVICE_TOKEN must be at least 32 characters in production")
     docs = not _production()
@@ -52,7 +52,7 @@ def create_service_app(name: str, description: str, version: str = "1.0.0", **kw
         openapi_url="/openapi.json" if docs else None,
         **kwargs,
     )
-    app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(BodySizeLimitMiddleware, upload_paths=upload_paths)  # photo routes get the larger limit
     app.add_middleware(SecurityHeadersMiddleware)
 
     @app.exception_handler(Exception)

@@ -24,6 +24,7 @@ app = create_service_app(
     "Eco vision service",
     "Facade, thermal and aerial computer vision: YOLOv8 (trained facade + solar), YOLO-World, SAM ViT-B.",
     lifespan=lifespan,
+    upload_paths=("/detect", "/segment"),
 )
 
 

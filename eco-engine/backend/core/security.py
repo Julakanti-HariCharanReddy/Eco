@@ -240,15 +240,20 @@ MAX_UPLOAD_BYTES = 13 * 1024 * 1024   # photo uploads (the vision engine itself 
 MAX_JSON_BYTES = 256 * 1024           # every other request body
 
 
+# Paths that take photo uploads (gateway defaults); the vision service passes its own.
+GATEWAY_UPLOAD_PATHS = ("/vision/", "/api/v1/cv")
+
+
 class BodySizeLimitMiddleware:
-    def __init__(self, app):
+    def __init__(self, app, upload_paths=GATEWAY_UPLOAD_PATHS):
         self.app = app
+        self.upload_paths = tuple(upload_paths)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         path = scope.get("path", "")
-        limit = MAX_UPLOAD_BYTES if path.startswith("/vision/") or path == "/api/v1/cv" else MAX_JSON_BYTES
+        limit = MAX_UPLOAD_BYTES if path.startswith(self.upload_paths) else MAX_JSON_BYTES
         declared = next((v for n, v in scope.get("headers", []) if n == b"content-length"), None)
         if declared is not None:
             try:
