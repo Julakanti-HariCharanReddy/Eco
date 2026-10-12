@@ -166,6 +166,8 @@ def test_iso52016_building_matches_the_fast_model_geometry():
     assert sum(s["area"] for s in windows) == pytest.approx(geo.window_area_m2 * sum(WINDOW_SHARE.values()), rel=1e-3)
     assert all(s["u_value"] == pytest.approx(fab.wall_u, abs=1e-4) for s in walls)
     assert {s["orientation"]["azimuth"] for s in walls} == {0.0, 90.0, 180.0, 270.0}
+    ground = [s for s in surfaces if s["sky_view_factor"] == 0]  # how pyBuildingEnergy finds the slab
+    assert [s["name"] for s in ground] == ["Ground floor"]
     assert bui["building_parameters"]["temperature_setpoints"]["heating_setpoint"] == fab.set_point_c
     assert sum(bui["building_parameters"]["heating_profile"]["weekday"]) == 9  # 07-09 and 16-23
 

@@ -40,9 +40,12 @@ def _profile(weekend: bool) -> List[float]:
     return [1.0 if (7 <= h < 9 or 16 <= h < 23) else 0.0 for h in range(24)]
 
 
-def _surface(name, kind, area, u, azimuth, tilt, capacity=0.0, **extra) -> Dict[str, Any]:
+def _surface(name, kind, area, u, azimuth, tilt, capacity=0.0, ground=False, **extra) -> Dict[str, Any]:
+    # pyBuildingEnergy finds the slab-on-ground by sky_view_factor == 0 (ISO 13370 ground model);
+    # roofs see the whole sky (1.0) and walls half of it (0.5).
+    sky = 0.0 if ground else (1.0 if tilt == 0 else 0.5)
     s = {
-        "name": name, "type": kind, "area": round(float(area), 3), "sky_view_factor": 1.0 if tilt == 0 else 0.5,
+        "name": name, "type": kind, "area": round(float(area), 3), "sky_view_factor": sky,
         "u_value": round(float(u), 4), "solar_absorptance": 0.6, "thermal_capacity": capacity,
         "orientation": {"azimuth": azimuth, "tilt": tilt}, "name_adj_zone": None,
         "height": 2.5, "length": max(0.1, round(float(area) / 2.5, 3)),
@@ -79,7 +82,7 @@ def build_bui(prop: Mapping, fabric: "tm.Fabric") -> Dict[str, Any]:
                 width_or_distance_of_shading_elements=0.0, overhang_properties={"width_of_horizontal_overhangs": 0.0},
             ))
     if geo.ground_floor_area_m2 > 0:
-        surfaces.append(_surface("Ground floor", "opaque", geo.ground_floor_area_m2, fabric.floor_u, 0.0, 0.0, CAPACITY["slab"]))
+        surfaces.append(_surface("Ground floor", "opaque", geo.ground_floor_area_m2, fabric.floor_u, 0.0, 0.0, CAPACITY["slab"], ground=True))
 
     exposed_area = geo.wall_area_m2 + geo.window_area_m2 + geo.roof_area_m2 + geo.ground_floor_area_m2
     h_ve = 0.33 * fabric.infiltration_ach * geo.volume_m3
