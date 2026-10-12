@@ -247,7 +247,8 @@ class BodySizeLimitMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
-        limit = MAX_UPLOAD_BYTES if scope.get("path", "").startswith("/vision/") else MAX_JSON_BYTES
+        path = scope.get("path", "")
+        limit = MAX_UPLOAD_BYTES if path.startswith("/vision/") or path == "/api/v1/cv" else MAX_JSON_BYTES
         declared = next((v for n, v in scope.get("headers", []) if n == b"content-length"), None)
         if declared is not None:
             try:

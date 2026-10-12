@@ -490,6 +490,17 @@ def test_update_recomputes_derived_fields(client):
     client.delete(f"/properties/{pid}")
 
 
+def test_update_rejects_null_required_fields(client):
+    pid = client.post("/properties", json=NEW_HOME).json()["property_id"]
+    try:
+        for field in ("address", "current_epc_score", "annual_gas_kwh", "smart_controls"):
+            response = client.patch(f"/properties/{pid}", json={field: None})
+            assert response.status_code == 422, field
+        assert client.get(f"/properties/{pid}").json()["address"] == NEW_HOME["address"]
+    finally:
+        client.delete(f"/properties/{pid}")
+
+
 def test_homes_are_invisible_to_other_users(client):
     pid = client.post("/properties", json=NEW_HOME).json()["property_id"]
     try:

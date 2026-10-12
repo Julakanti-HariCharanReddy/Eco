@@ -5,7 +5,7 @@ and guarded LLM scenario layers.
 """
 
 from typing import Annotated, List, Dict, Optional, Any
-from pydantic import BaseModel, Field, ConfigDict, StringConstraints, field_validator
+from pydantic import BaseModel, Field, ConfigDict, StringConstraints, field_validator, model_validator
 
 # Bounded building blocks: every list, code and free-text field has a size limit so no
 # request can make the engines (or the database) do unbounded work.
@@ -135,6 +135,18 @@ class PropertyUpdate(BaseModel):
     solar_pv_kwp: Optional[float] = Field(None, ge=0.0, le=50.0)
     battery_storage_kwh: Optional[float] = Field(None, ge=0.0, le=100.0)
     smart_controls: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_null_required_fields(cls, values):
+        # Omission means "leave unchanged"; null is only meaningful for derived fields,
+        # where it requests recalculation from the underlying property values.
+        if isinstance(values, dict):
+            derived = {"current_epc_rating", "current_primary_energy_kwh_m2", "roof_insulation_status"}
+            null_fields = [key for key, value in values.items() if key in cls.model_fields and key not in derived and value is None]
+            if null_fields:
+                raise ValueError(f"Property fields cannot be null: {', '.join(sorted(null_fields))}")
+        return values
 
 
 class PropertySummary(BaseModel):

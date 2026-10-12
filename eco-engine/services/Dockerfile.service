@@ -26,6 +26,7 @@ RUN if [ "$REQS" = "vision" ]; then \
         pip install "git+https://github.com/ultralytics/CLIP.git@a13192f8cb767260d7dfd98c843b0716593169e7"; \
     fi && \
     pip install -r requirements/${REQS}.txt && \
+    if [ -f "requirements/${REQS}-nodeps.txt" ]; then pip install --no-deps -r "requirements/${REQS}-nodeps.txt"; fi && \
     apt-get purge -y git && apt-get autoremove -y
 
 COPY backend/ backend/

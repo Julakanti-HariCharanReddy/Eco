@@ -95,6 +95,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements/physics.txt pytest httpx
+          pip install --no-deps -r requirements/physics-nodeps.txt
 
       - name: Run ISO 52016 smoke test (fails if it is skipped)
         run: |

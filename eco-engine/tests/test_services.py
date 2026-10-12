@@ -218,6 +218,16 @@ def test_gateway_routes_vision_to_the_service(gateway, vision_app):
     assert v1.status_code == 200 and v1.json()["mode"] == "thermal"
 
 
+def test_versioned_vision_accepts_normal_photo_size(gateway, vision_app):
+    c, _ = gateway
+    remote.set_test_client("VISION_SERVICE_URL", TestClient(vision_app))
+    photo = np.random.default_rng(0).integers(0, 256, (600, 600, 3), dtype=np.uint8)
+    ok, encoded = cv2.imencode(".jpg", photo)
+    assert ok and len(encoded) > 256 * 1024
+    response = c.post("/api/v1/cv", files={"file": ("photo.jpg", encoded.tobytes(), "image/jpeg")}, data={"mode": "thermal"})
+    assert response.status_code == 200
+
+
 def test_gateway_revalidates_llm_service_replies(gateway, monkeypatch, llm_app):
     from services.llm_service.app import scenario_parser
     from services.llm_service.app.guardrails import ExplainResponse
