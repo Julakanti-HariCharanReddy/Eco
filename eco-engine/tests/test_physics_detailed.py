@@ -8,14 +8,20 @@ import pytest
 pytest.importorskip("pybuildingenergy", exc_type=ImportError)
 
 
+# Pins that change the simulation's behaviour: a different pvlib / timezonefinder imports but
+# breaks mid-run (e.g. timezonefinder 6.x against h3 4.x). The service image installs exactly
+# these (requirements/physics.txt); other pyBuildingEnergy pins, such as urllib3, are deliberately newer.
+RUNTIME_PINS = ("pvlib", "timezonefinder")
+
+
 def _pins_satisfied() -> bool:
-    """pyBuildingEnergy pins exact versions (pvlib, timezonefinder); a mismatched local install
-    imports but breaks mid-run, so only run where the environment is what the service image has."""
     import importlib.metadata as md
 
     for req in md.requires("pybuildingenergy") or []:
         if "==" in req and ";" not in req:
             name, version = (part.strip() for part in req.split("=="))
+            if name.lower() not in RUNTIME_PINS:
+                continue
             try:
                 if md.version(name) != version:
                     return False
@@ -25,7 +31,7 @@ def _pins_satisfied() -> bool:
 
 
 if not _pins_satisfied():
-    pytest.skip("pyBuildingEnergy's pinned dependencies are not installed as pinned", allow_module_level=True)
+    pytest.skip("pvlib / timezonefinder are not the versions pyBuildingEnergy pins", allow_module_level=True)
 
 from fastapi.testclient import TestClient  # noqa: E402
 
