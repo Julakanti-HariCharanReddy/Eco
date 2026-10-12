@@ -298,6 +298,7 @@ in the URL (`?tq=…&tsort=…&tpage=…`, nuqs style) so views can be shared as
 | POST | `/auth/register`, `/auth/login` | Local accounts: returns a signed session token |
 | GET | `/auth/me` | The signed-in user |
 | POST | `/vision/analyze` | Computer vision on an uploaded photo (exterior or thermal) |
+| POST | `/vision/live` | One live-camera frame on the fast path (trained detectors at 640 px, max 2 MB, 150 frames/min) |
 | GET | `/vision/status` | Which vision models are loaded |
 | POST | `/vision/segment` | SAM outlines for detection boxes (multipart `file`, JSON `boxes`) |
 | GET | `/properties/{id}/epc-prediction` | Predicted potential EPC band (external XGBoost model) |

@@ -118,14 +118,13 @@ def load_state_dict(path: Path):
     return torch.load(str(path), map_location="cpu", weights_only=True)
 
 
-def load_yolo(path: Path):
+def _load_checkpoint_module(path: Path):
     """
-    Loads an Ultralytics YOLOv8 checkpoint through torch's weights-only unpickler, allowing
-    only the classes the file declares (all audited to be torch / ultralytics layers), and
-    returns a ready-to-predict ultralytics.YOLO object.
+    Unpickles an Ultralytics checkpoint through torch's weights-only unpickler, allowing only
+    the classes the file declares (all audited to be torch / ultralytics layers), and returns
+    its network in eval mode.
     """
     import torch
-    from ultralytics import YOLO
 
     allowed = []
     for g in audit_checkpoint(path):
@@ -143,12 +142,18 @@ def load_yolo(path: Path):
                     break
     with torch.serialization.safe_globals(allowed):
         ckpt = torch.load(str(path), map_location="cpu", weights_only=True)
-    det = (ckpt.get("ema") or ckpt["model"]).float().eval()
-    for p in det.parameters():
+    net = (ckpt.get("ema") or ckpt["model"]).float().eval()
+    for p in net.parameters():
         p.requires_grad_(False)
+    return net
+
+
+def load_yolo(path: Path):
+    """A ready-to-predict ultralytics.YOLO detector from a checkpoint (YOLOv8 or YOLO26)."""
+    from ultralytics import YOLO
 
     yolo = YOLO("yolov8n.yaml", task="detect", verbose=False)  # architecture shell, replaced below
-    yolo.model = det
+    yolo.model = _load_checkpoint_module(path)
     yolo.task = "detect"
     yolo.ckpt = None
     yolo.ckpt_path = str(path)

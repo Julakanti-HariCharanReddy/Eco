@@ -228,18 +228,34 @@
                 <p>An exterior photo or a thermal-camera image. JPG, PNG or WebP up to 12 MB.<br>Processed in memory and never stored.</p>
                 <div class="dz-actions">
                   <label class="btn btn-primary" for="visionFile"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-upload"></use></svg>Upload photo</label>
-                  <button class="btn btn-secondary" type="button" id="cameraBtn"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-camera"></use></svg>Use camera</button>
+                  <button class="btn btn-secondary" type="button" id="cameraBtn"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-camera"></use></svg>Live camera</button>
                   <button class="btn btn-ghost" type="button" id="sampleExterior">Try sample photo</button>
                   <button class="btn btn-ghost" type="button" id="sampleThermal">Try thermal sample</button>
                 </div>
                 <input type="file" id="visionFile" accept="image/jpeg,image/png,image/webp" hidden>
               </div>
               <div id="cameraWrap" hidden style="width:100%">
-                <div class="viz"><video id="cameraVideo" playsinline autoplay muted></video></div>
-                <div class="dz-actions" style="margin-top:12px">
-                  <button class="btn btn-primary" type="button" id="snapBtn"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-camera"></use></svg>Capture</button>
-                  <button class="btn btn-ghost" type="button" id="cameraCancel">Cancel</button>
+                <div class="viz" style="text-align:center">
+                  <div class="live-frame">
+                    <video id="cameraVideo" class="live-video" playsinline autoplay muted aria-label="Live camera view with detections drawn over it"></video>
+                    <canvas id="liveCanvas" class="viz-overlay" aria-hidden="true"></canvas>
+                    <span class="live-chip" id="liveChip"><i></i><span id="liveChipText">Starting camera…</span></span>
+                  </div>
                 </div>
+                <div class="viz-toolbar">
+                  <div class="seg" role="group" aria-label="Live analysis mode">
+                    <button type="button" data-live-mode="exterior" aria-pressed="true">Exterior</button>
+                    <button type="button" data-live-mode="thermal" aria-pressed="false" title="Point at a thermal-camera screen or image">Thermal</button>
+                    <button type="button" data-live-mode="aerial" aria-pressed="false" title="Drone or top-down view of roofs">Aerial</button>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-ghost btn-sm" type="button" id="liveToggle" aria-pressed="true">Pause</button>
+                    <button class="btn btn-ghost btn-sm" type="button" id="cameraFlip" title="Switch between front and back camera">Flip</button>
+                    <button class="btn btn-primary btn-sm" type="button" id="snapBtn"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-camera"></use></svg>Capture &amp; analyse</button>
+                    <button class="btn btn-ghost btn-sm" type="button" id="cameraCancel">Close</button>
+                  </div>
+                </div>
+                <p class="live-summary" id="liveSummary" aria-live="polite"></p>
               </div>
               <div id="vizWrap" hidden style="width:100%">
                 <div class="viz" style="text-align:center">
@@ -267,16 +283,6 @@
           </div>
 
           <div style="display:grid;gap:16px" aria-live="polite">
-            <article class="card" id="visionSummary">
-              <div class="card-title"><h2>How it works</h2><span class="badge badge-info" id="visionStatusBadge">Checking model…</span></div>
-              <ul class="drivers" style="margin-top:0">
-                <li><svg class="icon icon-sm" aria-hidden="true"><use href="#i-eye"></use></svg>Facade YOLOv8 finds windows, doors, basements and garages; YOLO-World adds chimneys, outdoor units and solar</li>
-                <li><svg class="icon icon-sm" aria-hidden="true"><use href="#i-layers"></use></svg>Segment Anything (Meta) refines every box into a precise outline</li>
-                <li><svg class="icon icon-sm" aria-hidden="true"><use href="#i-sun"></use></svg>Aerial mode: a YOLOv8 trained on satellite tiles counts rooftop PV</li>
-                <li><svg class="icon icon-sm" aria-hidden="true"><use href="#i-thermo"></use></svg>Thermal images are segmented into heat-loss hotspots</li>
-                <li><svg class="icon icon-sm" aria-hidden="true"><use href="#i-check-circle"></use></svg>You confirm suggestions before they change the plan</li>
-              </ul>
-            </article>
             <article class="card" id="visionDetections" hidden>
               <div class="card-title"><h2>Detections</h2><span class="help" id="visionMeta"></span></div>
               <div id="thermalMeter"></div>

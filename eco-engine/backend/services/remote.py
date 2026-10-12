@@ -94,14 +94,14 @@ def remote_enabled(env: str) -> bool:
 # Vision
 # ---------------------------------------------------------------------------
 
-def vision_analyze(data: bytes, filename: str, content_type: str, mode: str) -> Dict:
+def vision_analyze(data: bytes, filename: str, content_type: str, mode: str, live: bool = False) -> Dict:
     if remote_enabled("VISION_SERVICE_URL"):
-        return _call("VISION_SERVICE_URL", "vision", "POST", "/detect", 60.0,
+        return _call("VISION_SERVICE_URL", "vision", "POST", "/detect", 15.0 if live else 60.0,
                      files={"file": (filename or "photo", data, content_type or "application/octet-stream")},
-                     data={"mode": mode})
+                     data={"mode": mode, "live": "true" if live else "false"})
     from backend.engine import vision_engine
 
-    return vision_engine.analyze_image(data, mode)
+    return vision_engine.analyze_image(data, mode, live)
 
 
 def vision_segment(data: bytes, filename: str, content_type: str, boxes: List[List[float]]) -> Dict:

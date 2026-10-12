@@ -266,3 +266,32 @@ def test_unknown_measure_codes_are_rejected_not_dropped():
     with pytest.raises(ValidationError):
         DAGSolveRequest(requested_interventions=["heat_pump", "solar_panels"])
     assert FullRetrofitRequest(property_id="PROP-GB-001", selected_interventions=["heat_pump"]).selected_interventions == ["heat_pump"]
+
+
+def test_live_camera_frames_use_the_fast_path(gateway, vision_app, monkeypatch):
+    from backend.engine import vision_engine as ve
+
+    c, _ = gateway
+    calls = []
+    monkeypatch.setattr(ve.yolo_world, "detect", lambda img: calls.append("yolo-world"))
+    frame = cv2.imencode(".jpg", np.full((480, 640, 3), 128, np.uint8))[1].tobytes()
+    for routed in (False, True):  # in-process, then through the vision service
+        if routed:
+            remote.set_test_client("VISION_SERVICE_URL", TestClient(vision_app))
+        r = c.post("/vision/live", files={"file": ("f.jpg", frame, "image/jpeg")}, data={"mode": "exterior"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["live"] is True and body["segmentable"] == []
+        assert "opencv-geometry" not in body["engines_used"] and "opencv-pv-texture" not in body["engines_used"]
+    assert calls == []  # the slow open-vocabulary model never runs on live frames
+
+    too_big = b"\xff\xd8" + b"0" * (ve.MAX_LIVE_BYTES + 10)
+    assert c.post("/vision/live", files={"file": ("f.jpg", too_big, "image/jpeg")}, data={"mode": "exterior"}).status_code == 413
+
+
+def test_live_camera_has_its_own_rate_limit():
+    from backend.core.security import RATE_RULES
+
+    rules = {(m, p): lim for m, p, lim in RATE_RULES}
+    assert ("POST", "/vision/live") in rules
+    assert rules[("POST", "/vision/live")] is not rules[("POST", "/vision/analyze")]

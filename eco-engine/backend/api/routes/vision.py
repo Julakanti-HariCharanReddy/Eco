@@ -58,6 +58,24 @@ async def vision_analyze(
         raise HTTPException(422, str(exc))
 
 
+@router.post("/live")
+async def vision_live(
+    file: UploadFile = File(..., description="One JPEG frame from the camera (max 2 MB)"),
+    mode: str = Form("exterior", description="exterior | thermal | aerial"),
+):
+    """
+    Live camera: analyses one frame on the fast path (trained detectors at 640 px), so the
+    browser can show boxes over the video about once a second. Frames are never stored.
+    """
+    data = await file.read(vision_engine.MAX_LIVE_BYTES + 1)
+    if len(data) > vision_engine.MAX_LIVE_BYTES:
+        raise HTTPException(413, "Camera frame is larger than 2 MB.")
+    try:
+        return await _run(remote.vision_analyze, data, file.filename, file.content_type, mode, True)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+
+
 @router.post("/segment")
 async def vision_segment(
     file: UploadFile = File(..., description="The same photo that was analysed"),

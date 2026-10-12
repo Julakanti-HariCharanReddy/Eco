@@ -140,7 +140,24 @@ const EcoVision = (() => {
     return res.json();
   }
 
-  return { analyze, segment, draw, colorFor };
+  /** One camera frame on the fast path. `signal` lets the caller abort when the camera closes. */
+  async function live(blob, mode, signal) {
+    const body = new FormData();
+    body.append("file", blob, "frame.jpg");
+    body.append("mode", mode);
+    const headers = {};
+    const token = await window.EcoAuth?.getToken?.();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${ECO_API_BASE}/vision/live`, { method: "POST", body, headers, signal });
+    if (!res.ok) {
+      const err = new Error(res.status === 429 ? "Too many frames; slowing down." : `${res.status} ${res.statusText}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  }
+
+  return { analyze, segment, live, draw, colorFor };
 })();
 
 window.EcoVision = EcoVision;

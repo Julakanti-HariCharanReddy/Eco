@@ -28,8 +28,8 @@ GLAZING_TYPE_NOTE = (
 )
 
 
-async def detect(data: bytes, mode: str) -> Dict:
-    result = await asyncio.wrap_future(INFERENCE_EXECUTOR.submit(vision_engine.analyze_image, data, mode))
+async def detect(data: bytes, mode: str, live: bool = False) -> Dict:
+    result = await asyncio.wrap_future(INFERENCE_EXECUTOR.submit(vision_engine.analyze_image, data, mode, live))
     result["glazing_type"] = {"predicted": None, "note": GLAZING_TYPE_NOTE}
     return result
 

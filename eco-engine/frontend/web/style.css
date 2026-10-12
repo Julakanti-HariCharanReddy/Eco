@@ -647,6 +647,15 @@ tr.clickable:hover, tr[aria-selected="true"] { background: var(--blue-50); }
 .viz img, .viz video { width: 100%; display: block; max-height: 70vh; object-fit: contain; }
 .viz .scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--blue), transparent); box-shadow: 0 0 18px 4px var(--blue-glow); animation: scan 1.6s linear infinite; }
 .viz-toolbar { display: flex; gap: 8px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.live-frame { position: relative; display: inline-block; max-width: 100%; vertical-align: top; }
+.viz video.live-video { width: auto; max-width: 100%; max-height: 62vh; object-fit: fill; }
+.live-chip { position: absolute; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(6,7,9,.72); color: #fff; font-size: .75rem; font-weight: 500; backdrop-filter: blur(6px); }
+.live-chip i { width: 8px; height: 8px; border-radius: 50%; background: #8A90A0; }
+.live-chip[data-state="live"] i { background: #3DD68C; animation: live-pulse 1.4s ease-in-out infinite; }
+.live-chip[data-state="warn"] i { background: #FFB547; }
+.live-summary { margin: 10px 2px 0; color: var(--ink-3); font-size: .875rem; min-height: 1.3em; }
+@keyframes live-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live-chip[data-state="live"] i { animation: none; } }
 .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--bg-3); }
 .seg button { border: 0; background: transparent; padding: 0 14px; height: 32px; border-radius: 999px; font-size: .8125rem; font-weight: 500; color: var(--ink-3); cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow-sm); }

@@ -193,6 +193,8 @@ RATE_RULES: List[Tuple[str, str, SlidingWindowLimiter]] = [
     ("POST", "/auth/password", SlidingWindowLimiter(_limit("ECO_RATE_LOGIN_PER_MIN", 10), 60)),
     ("POST", "/vision/segment", SlidingWindowLimiter(_limit("ECO_RATE_SEGMENT_PER_MIN", 6), 60)),
     ("POST", "/vision/analyze", SlidingWindowLimiter(_limit("ECO_RATE_VISION_PER_MIN", 20), 60)),
+    # Live camera: about one frame a second per viewer, on the fast path.
+    ("POST", "/vision/live", SlidingWindowLimiter(_limit("ECO_RATE_LIVE_PER_MIN", 150), 60)),
     ("POST", "/api/v1/cv", SlidingWindowLimiter(_limit("ECO_RATE_VISION_PER_MIN", 20), 60)),
     ("POST", "/scenario/chat", SlidingWindowLimiter(_limit("ECO_RATE_CHAT_PER_MIN", 30), 60)),
     ("POST", "/api/v1/scenario", SlidingWindowLimiter(_limit("ECO_RATE_CHAT_PER_MIN", 30), 60)),

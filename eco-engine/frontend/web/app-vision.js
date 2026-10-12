@@ -200,27 +200,132 @@
     setTimeout(() => { activateTab("assessment"); window.scrollTo({ top: 0, behavior: "smooth" }); }, 700);
   }
 
-  /* ---------- Camera ---------- */
-  async function startCamera() {
-    if (!navigator.mediaDevices?.getUserMedia) { $("visionFile").click(); return; }
-    try {
-      v.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
-      $("cameraVideo").srcObject = v.stream;
-      showStage("camera");
-    } catch (_) {
-      alert("Camera unavailable. Upload a photo instead.");
-    }
+  /* ---------- Live camera ----------
+     About one frame a second goes to POST /vision/live (fast path: trained detectors only) and
+     the boxes are drawn over the moving video. One frame in flight at a time; frames are
+     shrunk to 960 px and never stored. "Capture & analyse" runs the full photo analysis. */
+  const LIVE_MIN_GAP_MS = 400;     // pause between frames after a reply
+  const LIVE_MAX_SIDE = 960;
+  const live = { on: false, busy: false, mode: "exterior", facing: "environment", timer: null, abort: null, result: null, backoff: 0 };
+
+  function setChip(text, state = "") {
+    $("liveChipText").textContent = text;
+    $("liveChip").dataset.state = state;
   }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert(window.isSecureContext ? "This browser has no camera support. Upload a photo instead."
+        : "The camera only works over https or on localhost. Upload a photo instead.");
+      return;
+    }
+    stopCamera();
+    try {
+      v.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: live.facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+      });
+    } catch (err) {
+      alert(err?.name === "NotAllowedError" ? "Camera permission was blocked. Allow it in the address bar, then try again."
+        : "No camera found. Upload a photo instead.");
+      return;
+    }
+    const video = $("cameraVideo");
+    video.srcObject = v.stream;
+    showStage("camera");
+    live.result = null;
+    $("liveSummary").textContent = "";
+    await new Promise((r) => (video.readyState >= 2 ? r() : (video.onloadeddata = r)));
+    live.on = $("liveToggle").getAttribute("aria-pressed") === "true";
+    setChip(live.on ? "Live · looking…" : "Paused", live.on ? "live" : "paused");
+    drawLive();
+    scheduleFrame(0);
+  }
+
   function stopCamera() {
+    clearTimeout(live.timer);
+    live.abort?.abort();
+    Object.assign(live, { busy: false, timer: null, abort: null, result: null, backoff: 0 });
     v.stream?.getTracks().forEach((t) => t.stop());
     v.stream = null;
+    if ($("cameraVideo")) $("cameraVideo").srcObject = null;
   }
-  function snap() {
+
+  function scheduleFrame(delay) {
+    clearTimeout(live.timer);
+    live.timer = setTimeout(sendFrame, delay);
+  }
+
+  function grabFrame(maxSide) {
     const video = $("cameraVideo");
+    const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
     const c = document.createElement("canvas");
-    c.width = video.videoWidth; c.height = video.videoHeight;
-    c.getContext("2d").drawImage(video, 0, 0);
-    c.toBlob((b) => loadFile(new File([b], "camera.jpg", { type: "image/jpeg" })), "image/jpeg", 0.92);
+    c.width = Math.round(video.videoWidth * scale);
+    c.height = Math.round(video.videoHeight * scale);
+    c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  async function sendFrame() {
+    if (!v.stream || !live.on || live.busy) return;
+    if (document.hidden || $("panel-vision").hidden) { scheduleFrame(1000); return; }  // tab not visible
+    live.busy = true;
+    live.abort = new AbortController();
+    const t0 = performance.now();
+    try {
+      const blob = await new Promise((r) => grabFrame(LIVE_MAX_SIDE).toBlob(r, "image/jpeg", 0.72));
+      const result = await EcoVision.live(blob, live.mode, live.abort.signal);
+      if (!v.stream || !live.on) return;
+      live.result = result;
+      live.backoff = 0;
+      const ms = Math.round(performance.now() - t0);
+      const n = result.detections.length;
+      setChip(`Live · ${n} found · ${ms} ms`, "live");
+      $("liveSummary").textContent = n
+        ? Object.entries(result.counts).map(([k, c]) => `${c} × ${k}`).join(" · ")
+        : "Nothing detected yet. Hold steady and fit the whole wall or roof in view.";
+      drawLive();
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      live.backoff = Math.min(8000, (live.backoff || 1000) * 2);
+      setChip(err.status === 429 ? "Busy · slowing down" : "Connection problem · retrying", "warn");
+    } finally {
+      live.busy = false;
+      live.abort = null;
+      if (v.stream && live.on) scheduleFrame(LIVE_MIN_GAP_MS + live.backoff);
+    }
+  }
+
+  function drawLive() {
+    EcoVision.draw($("liveCanvas"), $("cameraVideo"), live.result, { labels: true });
+  }
+
+  function setLiveMode(mode) {
+    live.mode = mode;
+    live.result = null;
+    drawLive();
+    document.querySelectorAll("[data-live-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.liveMode === mode)));
+    if (live.on) { live.abort?.abort(); live.busy = false; setChip("Live · looking…", "live"); scheduleFrame(0); }
+  }
+
+  function toggleLive() {
+    live.on = !live.on;
+    $("liveToggle").setAttribute("aria-pressed", String(live.on));
+    $("liveToggle").textContent = live.on ? "Pause" : "Resume";
+    if (live.on) { setChip("Live · looking…", "live"); scheduleFrame(0); }
+    else { clearTimeout(live.timer); live.abort?.abort(); setChip("Paused", "paused"); }
+  }
+
+  function flipCamera() {
+    live.facing = live.facing === "environment" ? "user" : "environment";
+    startCamera();
+  }
+
+  function snap() {
+    const mode = live.mode;
+    grabFrame(1920).toBlob((b) => {
+      setMode(mode);
+      loadFile(new File([b], "camera.jpg", { type: "image/jpeg" }));
+    }, "image/jpeg", 0.92);
   }
 
   async function loadSample(path, mode) {
@@ -237,18 +342,11 @@
   async function loadStatus() {
     try {
       const s = await ecoFetch("/vision/status");
-      const badge = $("visionStatusBadge");
-      const trained = Object.values(s.trained_detectors || {});
-      const all = [s, ...trained, s.segmenter || {}];
+      const all = [s, ...Object.values(s.trained_detectors || {}), s.segmenter || {}];
       v.samReady = !!s.segmenter?.loaded;
-      const ready = all.filter((m) => m.loaded).length;
-      const pending = all.some((m) => m.loading || (!m.loaded && !m.error));
-      badge.title = all.some((m) => m.error) ? "Some models failed to load; fallbacks are in use." : "";
-      if (ready === all.length) { badge.className = "badge badge-ok"; badge.textContent = `${ready} models ready`; }
-      else if (pending) { badge.className = "badge badge-info"; badge.textContent = `Loading models ${ready}/${all.length}`; setTimeout(loadStatus, 4000); }
-      else { badge.className = "badge badge-warn"; badge.textContent = `${ready}/${all.length} models · fallbacks on`; }
+      if (all.some((m) => m.loading || (!m.loaded && !m.error))) setTimeout(loadStatus, 4000);
       if (v.samReady && v.result && !v.result.detections.some((d) => d.sam)) refineWithSam(v.file, v.result);
-    } catch (_) { $("visionStatusBadge").textContent = "Offline"; }
+    } catch (_) { /* offline: photos still work with the fallbacks */ }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -265,6 +363,15 @@
     $("cameraBtn").addEventListener("click", startCamera);
     $("cameraCancel").addEventListener("click", () => { stopCamera(); showStage("empty"); });
     $("snapBtn").addEventListener("click", snap);
+    $("liveToggle").addEventListener("click", toggleLive);
+    $("cameraFlip").addEventListener("click", flipCamera);
+    document.querySelectorAll("[data-live-mode]").forEach((b) => b.addEventListener("click", () => setLiveMode(b.dataset.liveMode)));
+    window.addEventListener("resize", () => { if (v.stream) drawLive(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && v.stream && live.on) scheduleFrame(0); });
+    // Leaving the Vision tab turns the camera (and its light) off.
+    new MutationObserver(() => {
+      if ($("panel-vision").hidden && v.stream) { stopCamera(); showStage("empty"); }
+    }).observe($("panel-vision"), { attributes: true, attributeFilter: ["hidden"] });
     $("sampleExterior").addEventListener("click", () => loadSample("assets/eco_house_3d.webp", "exterior"));
     $("sampleThermal").addEventListener("click", () => loadSample("assets/thermal_sample.jpg", "thermal"));
     $("visionReset").addEventListener("click", reset);

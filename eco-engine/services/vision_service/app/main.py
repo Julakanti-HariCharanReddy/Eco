@@ -38,11 +38,14 @@ async def _read(file: UploadFile) -> bytes:
 async def detect(
     file: UploadFile = File(..., description="JPG, PNG or WebP photo"),
     mode: str = Form("auto", description="auto | exterior | thermal | aerial"),
+    live: bool = Form(False, description="Camera frame: fast path, trained detectors only"),
 ):
     """Object detection + thermal / aerial analysis. Returns bounding boxes, polygons and suggestions."""
     data = await _read(file)
+    if live and len(data) > vision_engine.MAX_LIVE_BYTES:
+        raise HTTPException(413, "Camera frame is larger than 2 MB.")
     try:
-        return await inference.detect(data, mode)
+        return await inference.detect(data, mode, live)
     except ValueError as exc:
         raise HTTPException(422, str(exc))
 

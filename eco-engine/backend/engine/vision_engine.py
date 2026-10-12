@@ -47,6 +47,7 @@ MODEL_PATH = Path(
 )
 MAX_SIDE_PX = 1280
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+MAX_LIVE_BYTES = 2 * 1024 * 1024  # one compressed camera frame
 
 # Prompt -> display label. YOLO-World matches these text prompts against the image.
 EXTERIOR_PROMPTS: Dict[str, str] = {
@@ -721,7 +722,11 @@ def _thermal_suggestions(dets: List[Detection], stats: Dict, windows: List[Detec
 # Entry point
 # ======================================================================
 
-def analyze_image(data: bytes, mode: str = "auto") -> Dict:
+def analyze_image(data: bytes, mode: str = "auto", live: bool = False) -> Dict:
+    """
+    live=True is the camera path (about one frame a second): only the trained detectors at
+    640 px, no YOLO-World, OpenCV extras or SAM, so a frame comes back in a fraction of a second.
+    """
     t0 = time.perf_counter()
     img = decode_image(data)
     quality = image_quality(img)
@@ -746,6 +751,15 @@ def analyze_image(data: bytes, mode: str = "auto") -> Dict:
         pv_area = 100.0 * sum((d.box[2] - d.box[0]) * (d.box[3] - d.box[1]) for d in dets)
         stats = {"pv_area_pct": round(pv_area, 2), "pv_arrays": len(dets)}
         suggestions = _aerial_suggestions(dets, pv_area)
+    elif resolved == "exterior" and live:
+        fw, fo = facade_windows.detect(img), facade_openings.detect(img)
+        dets = _dedupe((fw or []) + (fo or []), 0.2)
+        if fw is not None or fo is not None:
+            engines_used.append("facade-yolov8")
+        else:
+            notes.append("Detectors are still loading; try again in a moment.")
+        dets.sort(key=lambda d: d.confidence, reverse=True)
+        suggestions = _exterior_suggestions(dets)
     elif resolved == "exterior":
         dets: List[Detection] = []
         fw, fo = facade_windows.detect(img), facade_openings.detect(img)
@@ -783,11 +797,11 @@ def analyze_image(data: bytes, mode: str = "auto") -> Dict:
         windows = [d for d in (facade_windows.detect(img) or []) + (facade_openings.detect(img) or []) if d.label in ("Window", "Door")]
         if windows:
             engines_used.append("facade-yolov8")
-        else:
+        elif not live:
             windows = [d for d in (yolo_world.detect(img) or []) if d.label in ("Window", "Door")]
             if windows:
                 engines_used.append("yolo-world")
-        if not windows:
+        if not windows and not live:
             windows = detect_openings_geometric(img, max_items=12)
         suggestions = _thermal_suggestions(dets, stats, windows)
         offset = len(dets)
@@ -802,6 +816,7 @@ def analyze_image(data: bytes, mode: str = "auto") -> Dict:
     return {
         "mode": resolved,
         "mode_requested": mode,
+        "live": live,
         "detections": [
             {
                 "id": i,
@@ -818,7 +833,7 @@ def analyze_image(data: bytes, mode: str = "auto") -> Dict:
         "suggestions": [s.__dict__ for s in suggestions],
         "thermal": stats if resolved == "thermal" else None,
         "aerial": stats if resolved == "aerial" else None,
-        "segmentable": [i for i, d in enumerate(dets) if d.label in SEGMENTABLE and not d.polygon][:MAX_SEGMENT_BOXES],
+        "segmentable": [] if live else [i for i, d in enumerate(dets) if d.label in SEGMENTABLE and not d.polygon][:MAX_SEGMENT_BOXES],
         "quality": quality,
         "engines_used": engines_used,
         "notes": notes,
