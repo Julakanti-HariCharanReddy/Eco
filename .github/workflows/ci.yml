@@ -106,5 +106,5 @@ jobs:
         run: |
           set -o pipefail
           python -m pytest tests/test_physics_detailed.py -p no:anyio -q -rsfE --tb=short 2>&1 | tee result.txt || {
-            grep -E "^(FAILED|ERROR) |^E  |Error|error" result.txt | head -40 | sed 's/^/::error::/'; exit 1; }
-          if grep -q "skipped" result.txt; then grep -i "skip" result.txt | sed 's/^/::error::/'; exit 1; fi
+            tail -n 25 result.txt | sed 's/^/::error::/'; exit 1; }
+          if grep -q "skipped" result.txt; then tail -n 10 result.txt | sed 's/^/::error::/'; exit 1; fi
