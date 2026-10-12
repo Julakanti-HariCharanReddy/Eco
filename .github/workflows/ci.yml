@@ -106,5 +106,6 @@ jobs:
         run: |
           set -o pipefail
           python -m pytest tests/test_physics_detailed.py -p no:anyio -q -rsfE --tb=short 2>&1 | tee result.txt || {
-            tail -n 25 result.txt | sed 's/^/::error::/'; exit 1; }
+            # Annotations are capped at 10 per step: exception lines first, then the last lines.
+            { grep -E "^E +|^[A-Za-z_][A-Za-z0-9_.]*(Error|Exception)\b" result.txt | tail -n 6; tail -n 4 result.txt; } | sed 's/^/::error::/'; exit 1; }
           if grep -q "skipped" result.txt; then tail -n 10 result.txt | sed 's/^/::error::/'; exit 1; fi
