@@ -117,10 +117,7 @@ def test_unknown_email_and_wrong_password_look_identical(client):
 
 
 def test_password_change_revokes_old_sessions(client):
-    import time
-
     old = register(client, "pw@example.com", "first-pass-1")
-    time.sleep(1.1)  # token iat has one-second resolution
     bad = client.post("/auth/password", headers=old, json={"current_password": "nope-nope-1", "new_password": "second-pass-2"})
     assert bad.status_code == 400
     ok = client.post("/auth/password", headers=old, json={"current_password": "first-pass-1", "new_password": "second-pass-2"})
@@ -130,6 +127,18 @@ def test_password_change_revokes_old_sessions(client):
     new = client.post("/auth/login", json={"email": "pw@example.com", "password": "second-pass-2"})
     assert new.status_code == 200
     assert client.get("/auth/me", headers={"Authorization": f"Bearer {new.json()['access_token']}"}).status_code == 200
+
+    # Even when an older token has the same one-second iat as the new token,
+    # its password version must fail verification.
+    import jwt
+    from backend.auth import _jwt_secret
+
+    old_claims = jwt.decode(old["Authorization"].split()[1], options={"verify_signature": False})
+    new_claims = jwt.decode(new.json()["access_token"], options={"verify_signature": False})
+    old_claims["iat"] = new_claims["iat"]
+    old_claims["exp"] = new_claims["exp"]
+    same_second_old_token = jwt.encode(old_claims, _jwt_secret(), algorithm="HS256")
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {same_second_old_token}"}).status_code == 401
 
 
 def test_forged_and_tampered_tokens_are_rejected(client):

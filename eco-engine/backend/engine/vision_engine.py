@@ -350,7 +350,13 @@ class _TrainedYolo:
 
 facade_windows = _TrainedYolo("facade_windows.pt", {"window": "Window"}, 0.25, "facade-yolov8")
 facade_openings = _TrainedYolo("facade_openings.pt", {"door": "Door", "basement": "Basement opening", "garage": "Garage door"}, 0.25, "facade-yolov8")
-solar_yolo = _TrainedYolo("solar_panel_yolov8.pt", {"solar-panel": "Solar panel"}, 0.25, "solar-yolov8")
+# Rooftop solar: YOLO26s fine-tuned on aerial images (training/), 86.8% vs 40.8% test mAP50 for the
+# previous YOLOv8 model; falls back to YOLOv8 when the YOLO26 file is not downloaded.
+solar_yolo = (
+    _TrainedYolo("yolo26_solar.pt", {"item": "Solar panel", "Solar-Panel": "Solar panel"}, 0.25, "solar-yolo26")
+    if (MODELS_DIR / "yolo26_solar.pt").exists()
+    else _TrainedYolo("solar_panel_yolov8.pt", {"solar-panel": "Solar panel"}, 0.25, "solar-yolov8")
+)
 TRAINED = {"facade_windows": facade_windows, "facade_openings": facade_openings, "solar_panels": solar_yolo}
 
 SEGMENTABLE = {"Window", "Door", "Garage door", "Basement opening", "Solar panel", "Outdoor heat-pump / AC unit", "Chimney"}
@@ -745,7 +751,7 @@ def analyze_image(data: bytes, mode: str = "auto", live: bool = False) -> Dict:
             engines_used.append("opencv-pv-texture")
             notes.append("Trained solar model unavailable, so the classical PV texture detector was used.")
         else:
-            engines_used.append("solar-yolov8")
+            engines_used.append(solar_yolo.source)
         dets = _dedupe(dets, 0.5)
         dets.sort(key=lambda d: d.confidence, reverse=True)
         pv_area = 100.0 * sum((d.box[2] - d.box[0]) * (d.box[3] - d.box[1]) for d in dets)

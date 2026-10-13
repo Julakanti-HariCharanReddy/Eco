@@ -149,7 +149,12 @@ def verify_password_or_dummy(password: str, password_hash: Optional[str]) -> boo
     return verify_password(password, password_hash)
 
 
-def issue_local_token(user: AuthUser) -> str:
+def _password_version(changed_at) -> Optional[str]:
+    """Exact database password-change marker included in local sessions."""
+    return changed_at.isoformat(timespec="microseconds") if changed_at is not None else None
+
+
+def issue_local_token(user: AuthUser, password_changed_at=None) -> str:
     now = int(time.time())
     payload = {
         "sub": user.id,
@@ -158,6 +163,7 @@ def issue_local_token(user: AuthUser) -> str:
         "iss": _JWT_ISSUER,
         "iat": now,
         "exp": now + LOCAL_TOKEN_TTL_S,
+        "pwdv": _password_version(password_changed_at),
     }
     return jwt.encode(payload, _jwt_secret(), algorithm="HS256")
 
@@ -179,8 +185,7 @@ def _verify_local(token: str) -> AuthUser:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session invalid. Please sign in again.")
         if not row.is_active:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has been deactivated.")
-        changed = row.password_changed_at
-        if changed is not None and int(data.get("iat", 0)) < _utc_seconds(changed):
+        if data.get("pwdv") != _password_version(row.password_changed_at):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Your password was changed. Please sign in again.")
         return AuthUser(
             id=row.user_id,
@@ -188,13 +193,6 @@ def _verify_local(token: str) -> AuthUser:
             name=row.name,
             is_superuser=bool(row.is_superuser) or (row.email or "").lower() in superuser_emails(),
         )
-
-
-def _utc_seconds(naive_utc) -> int:
-    """Database timestamps are stored as naive UTC."""
-    from datetime import timezone
-
-    return int(naive_utc.replace(tzinfo=timezone.utc).timestamp())
 
 
 class LoginThrottle:

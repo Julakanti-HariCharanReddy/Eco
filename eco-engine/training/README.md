@@ -33,3 +33,21 @@ Both are licensed CC BY 4.0: keep this attribution when you publish models train
 
 Doors, garage doors and basement openings stay on the YOLOv8 facade model for now. The public
 door datasets found were either interior doors or had fewer than 20 images.
+
+## Results (13 October 2026)
+
+Scores on each dataset's held-out **test** images (never used in training), plus window counts
+on five independent UK house photos from Wikimedia Commons, at the app's 0.25 confidence.
+
+| Detector | Model | Test mAP50 | Test mAP50-95 | 5 UK photos | Used in app |
+|---|---|---|---|---|---|
+| Rooftop solar | YOLOv8 (previous) | 0.408 | 0.168 | - | |
+| Rooftop solar | **YOLO26s, 60 epochs on CPU** | **0.868** | **0.533** | - | **Yes** |
+| Rooftop solar | YOLO26s, Roboflow cloud training | 0.753 | - | - | |
+| Windows | **YOLOv8 facade (current)** | 0.242 | 0.143 | **21, 5, 13, 7, 29** | **Yes** |
+| Windows | YOLO26s, 80 epochs on Colab T4 | 0.509 | 0.325 | 18, 2, 10, 5, 14 | |
+| Windows | YOLO26s, Roboflow cloud training | 0.379 | - | - | |
+
+Solar switched to YOLO26 (`models/yolo26_solar.pt`). Windows stays on YOLOv8: YOLO26 scores higher
+on its own dataset but finds fewer windows on independent UK photos, so it does not yet win on both.
+`training/train_yolo26_colab.ipynb` trains on a free Colab GPU in about 30 minutes.

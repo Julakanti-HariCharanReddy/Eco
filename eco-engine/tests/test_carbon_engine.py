@@ -84,3 +84,15 @@ def test_epc_heat_pump_paradox_mitigated_with_fabric_first():
     assert res.heat_pump_paradox_mitigated is True
     assert "EPC Heat Pump Paradox Solved" in res.paradox_explanation
     assert res.net_co2e_reduction_tonnes > 2.5
+
+
+def test_solar_does_not_increase_imports_for_low_use_home():
+    res = calculate_decoupled_carbon_impact(CarbonEvaluationRequest(
+        baseline_gas_kwh=0.0,
+        baseline_electricity_kwh=500.0,
+        interventions=["solar_pv"],
+        property_floor_area_m2=80.0,
+    ))
+    assert res.projected_electricity_kwh == 0.0
+    assert res.delta_electricity_kwh == -500.0
+    assert res.net_bill_savings_gbp > 0

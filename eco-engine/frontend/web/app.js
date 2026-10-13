@@ -179,8 +179,12 @@ async function selectProperty(id) {
 
   try {
     const detail = await ecoQuery(`/properties/${id}`);
+    if (state.currentId !== id) return;
     renderSpecs(detail);
-  } catch (err) { showError(err); }
+  } catch (err) {
+    if (state.currentId !== id) return;
+    showError(err);
+  }
   loadEpcPrediction(id);
 
   scheduleEvaluation(0);

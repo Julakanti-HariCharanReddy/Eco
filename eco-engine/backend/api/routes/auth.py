@@ -55,7 +55,7 @@ def _session_for(row) -> AuthSession:
     is_admin = bool(row.is_superuser) or (row.email or "").lower() in superuser_emails()
     user = AuthUser(id=row.user_id, email=row.email, name=row.name, is_superuser=is_admin)
     return AuthSession(
-        access_token=issue_local_token(user),
+        access_token=issue_local_token(user, row.password_changed_at),
         expires_in=LOCAL_TOKEN_TTL_S,
         user=AuthUserOut(id=user.id, email=user.email, name=user.name, is_superuser=is_admin),
     )

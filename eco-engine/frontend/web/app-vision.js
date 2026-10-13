@@ -115,7 +115,7 @@
     const r = v.result;
     const engines = r.engines_used.map((e) => ({
       "yolo-world": "YOLO-World", "opencv-geometry": "OpenCV geometry", "thermal-segmentation": "Thermal segmentation", "opencv-pv-texture": "PV texture detector",
-      "facade-yolov8": "Facade YOLOv8", "solar-yolov8": "Solar YOLOv8 (satellite)",
+      "facade-yolov8": "Facade YOLOv8", "solar-yolov8": "Solar YOLOv8 (satellite)", "solar-yolo26": "Solar YOLO26 (satellite)",
     }[e] || e)).join(" + ");
     const modeName = { thermal: "Thermal", aerial: "Aerial", exterior: "Exterior" }[r.mode] || "Exterior";
     $("visionMeta").innerHTML = `${modeName} · ${escapeHtml(engines)} · ${r.processing_ms} ms`;

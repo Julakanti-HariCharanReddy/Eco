@@ -108,7 +108,7 @@ def calculate_decoupled_carbon_impact(
         else:
             solar_self_consumption = solar_generation * 0.45
 
-        proj_elec = max(1000.0, proj_elec - solar_self_consumption)
+        proj_elec = max(0.0, proj_elec - solar_self_consumption)
 
     # 4. Calculate Deltas
     delta_gas = proj_gas - base_gas  # Negative if gas reduced
